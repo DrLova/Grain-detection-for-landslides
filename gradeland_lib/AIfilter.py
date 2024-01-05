@@ -117,64 +117,64 @@ def find_bounds_dict(clustered_dictionary):
                     detectionpoints.append(point)
     return find_bounds(detectionpoints)
  
-def cluster_1st(importname,exportname,export = True,megalith=0.8,axe_detail=0.4,core_fraction = 0.25,min_confirmations = 5):
-    '''aaloa 0.3211218891790367 0.27684637920980454 4.223035087643648 6
-vloci 0.4601285667025782 0.38193560475093596 3.582462859520657 5
-ailoo 0.42970694617175687 0.4319624353525562 2.9836220967220086 4
-mvefs 0.9477736182526602 0.4373537661163098 4.7617503841750555 4'''
-    def listdetections(rawdict,megalith,max_oblateness = 3.5):
-        rawdetections = [] # the rawdetections contain [centroid x, centroid y, len max axis,len min axis]
-        listdict = []
-        cropbound = find_bounds(rawdict[0]['cropping coordinates'])
-        for photo in range(1,len(rawdict)):
-            for detectnum in range(len(rawdict[photo]['centroids'])):
-                centroid = rawdict[photo]['centroids'][detectnum]
-                if all([centroid[0]>=cropbound[0],centroid[0]<=cropbound[1],centroid[1]>=cropbound[2],centroid[1]<=cropbound[3]]):
-                    axes = rawdict[photo]['axes'][detectnum]
-                    lens = []
-                    for axe in axes:
-                        lens.append(pdist([axe[0],axe[1]])[0])
-                    if min(lens)>0:
-                        if max(lens)< megalith*pdist([rawdict[0]['cropping coordinates'][0],rawdict[0]['cropping coordinates'][1]])[0]:
-                            if max(lens)/min(lens)< max_oblateness:
-                                rawdetections.append(rawdict[photo]['centroids'][detectnum])
-                                rawdetections[-1].append(max(lens))
-                                rawdetections[-1].append(min(lens))
-                                listdict.append({'ID':rawdict[photo]['ID'],'centroids':rawdict[photo]['centroids'][detectnum],'axes':rawdict[photo]['axes'][detectnum]})
-        return rawdetections,listdict
+# def cluster_1st(importname,exportname,export = True,megalith=0.8,axe_detail=0.4,core_fraction = 0.25,min_confirmations = 5):
+#     '''aaloa 0.3211218891790367 0.27684637920980454 4.223035087643648 6
+# vloci 0.4601285667025782 0.38193560475093596 3.582462859520657 5
+# ailoo 0.42970694617175687 0.4319624353525562 2.9836220967220086 4
+# mvefs 0.9477736182526602 0.4373537661163098 4.7617503841750555 4'''
+#     def listdetections(rawdict,megalith,max_oblateness = 3.5):
+#         rawdetections = [] # the rawdetections contain [centroid x, centroid y, len max axis,len min axis]
+#         listdict = []
+#         cropbound = find_bounds(rawdict[0]['cropping coordinates'])
+#         for photo in range(1,len(rawdict)):
+#             for detectnum in range(len(rawdict[photo]['centroids'])):
+#                 centroid = rawdict[photo]['centroids'][detectnum]
+#                 if all([centroid[0]>=cropbound[0],centroid[0]<=cropbound[1],centroid[1]>=cropbound[2],centroid[1]<=cropbound[3]]):
+#                     axes = rawdict[photo]['axes'][detectnum]
+#                     lens = []
+#                     for axe in axes:
+#                         lens.append(pdist([axe[0],axe[1]])[0])
+#                     if min(lens)>0:
+#                         if max(lens)< megalith*pdist([rawdict[0]['cropping coordinates'][0],rawdict[0]['cropping coordinates'][1]])[0]:
+#                             if max(lens)/min(lens)< max_oblateness:
+#                                 rawdetections.append(rawdict[photo]['centroids'][detectnum])
+#                                 rawdetections[-1].append(max(lens))
+#                                 rawdetections[-1].append(min(lens))
+#                                 listdict.append({'ID':rawdict[photo]['ID'],'centroids':rawdict[photo]['centroids'][detectnum],'axes':rawdict[photo]['axes'][detectnum]})
+#         return rawdetections,listdict
     
-    with open(importname, 'r') as json_file:
-        json_data = json_file.read()
-    rawdict = json.loads(json_data)
-    cube,listdict = listdetections(rawdict,megalith)
-    median_stone_len = sorted(cube.copy(), key=lambda x: x[2])[round(len(cube)/2)][2]
-    thresholdaxe = median_stone_len*axe_detail
-    core_fraction *=median_stone_len
-    confirmed = []
-    vowels,consonnants = nmgen.makeletterlists()
-    tree = KDTree([x[:2] for x in cube])
-    spent = []
-    for index in range(len(listdict)):
-        if index not in spent:
-            ingroups = [index]
-            chosenone = cube[index]
-            index_neighbours = tree.query_ball_point(chosenone[:2],float(core_fraction))
-            for onenbr in index_neighbours:
-                otherchosen = cube[onenbr]
-                if all([chosenone[2]-thresholdaxe<=otherchosen[2]<=chosenone[2]+thresholdaxe,chosenone[3]-thresholdaxe<=otherchosen[3]<=chosenone[3]+thresholdaxe,onenbr not in ingroups,onenbr not in spent]):
-                    ingroups.append(onenbr)
-            if len(ingroups)>=min_confirmations:
-                spent.append(index)
-                confirmed.append({'name':nmgen.makeaname(6,vowels,consonnants),'color':nmgen.makeacolor(),'centroids':[],'axes':[],'axes lenghts':[]})
-                for ingroup in ingroups:
-                    spent.append(ingroup)
-                    confirmed[-1]['axes'].append(listdict[ingroup]['axes'])
-                    confirmed[-1]['axes lenghts'].append(cube[ingroup][-2:])
-                    confirmed[-1]['centroids'].append(cube[ingroup][:2])
-    if export:
-        with open(exportname,'w') as jsonout:
-            jsonout.write(json.dumps(confirmed))
-    return confirmed
+#     with open(importname, 'r') as json_file:
+#         json_data = json_file.read()
+#     rawdict = json.loads(json_data)
+#     cube,listdict = listdetections(rawdict,megalith)
+#     median_stone_len = sorted(cube.copy(), key=lambda x: x[2])[round(len(cube)/2)][2]
+#     thresholdaxe = median_stone_len*axe_detail
+#     core_fraction *=median_stone_len
+#     confirmed = []
+#     vowels,consonnants = nmgen.makeletterlists()
+#     tree = KDTree([x[:2] for x in cube])
+#     spent = []
+#     for index in range(len(listdict)):
+#         if index not in spent:
+#             ingroups = [index]
+#             chosenone = cube[index]
+#             index_neighbours = tree.query_ball_point(chosenone[:2],float(core_fraction))
+#             for onenbr in index_neighbours:
+#                 otherchosen = cube[onenbr]
+#                 if all([chosenone[2]-thresholdaxe<=otherchosen[2]<=chosenone[2]+thresholdaxe,chosenone[3]-thresholdaxe<=otherchosen[3]<=chosenone[3]+thresholdaxe,onenbr not in ingroups,onenbr not in spent]):
+#                     ingroups.append(onenbr)
+#             if len(ingroups)>=min_confirmations:
+#                 spent.append(index)
+#                 confirmed.append({'name':nmgen.makeaname(6,vowels,consonnants),'color':nmgen.makeacolor(),'centroids':[],'axes':[],'axes lenghts':[]})
+#                 for ingroup in ingroups:
+#                     spent.append(ingroup)
+#                     confirmed[-1]['axes'].append(listdict[ingroup]['axes'])
+#                     confirmed[-1]['axes lenghts'].append(cube[ingroup][-2:])
+#                     confirmed[-1]['centroids'].append(cube[ingroup][:2])
+#     if export:
+#         with open(exportname,'w') as jsonout:
+#             jsonout.write(json.dumps(confirmed))
+#     return confirmed
 # --------------------------------------------------------------------------------------------------------
 
 def groupcentroids(clusteredict):
@@ -247,8 +247,8 @@ def show_superimposed(canvas,clusteredict,superimposed):
     cv2.waitKey(10)
     return
 
-def compile_training_set(training_dict_name='training_dict.json'):
-    with open('clustered.json', 'r') as json_file:
+def compile_training_set(clean_path ='clustered.json', training_dict_name='training_dict.json'):
+    with open(clean_path, 'r') as json_file:
         json_data = json_file.read()
     clusteredict = json.loads(json_data)
     canvas = paint_filteredict(clusteredict)
@@ -382,15 +382,15 @@ def import_clustering_model():
     return model
 
 # compile_training_set()
+if __name__ == '__main__':
+    with open('training_dict.json','r') as jsonin:
+        jsondata = jsonin.read()
+    training = json.loads(jsondata)
 
-with open('training_dict.json','r') as jsonin:
-    jsondata = jsonin.read()
-training = json.loads(jsondata)
+    with open('clustered.json', 'r') as json_file:
+        json_data = json_file.read()
+    clusteredict = json.loads(json_data)
 
-with open('clustered.json', 'r') as json_file:
-    json_data = json_file.read()
-clusteredict = json.loads(json_data)
+    clean_dict = cluster_2nd_cycle(clusteredict,import_clustering_model())
 
-clean_dict = cluster_2nd_cycle(clusteredict,import_clustering_model())
-
-canvas = paint_cleandict(clean_dict)
+    canvas = paint_cleandict(clean_dict)

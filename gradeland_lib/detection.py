@@ -21,6 +21,8 @@ import numpy as np
 import pandas as pd
 import scipy as sp
 from scipy import ndimage
+import skimage
+from skimage.morphology import reconstruction
 
 from gradeland_lib import maskmkr as mkmk
 
@@ -37,7 +39,7 @@ class Logger(object):
     def flush(self):
         pass
 
-def adaptiveOtsu(gray,div_pixel,fraction):
+def adaptiveOtsu(gray,div_pixel,fraction,blur = True):
     """
     This function efficiently implements an adaptive version of the Otsu threshold, particularly useful for images with large shadows. Normal Otsu thresholding could result in large unsegmented areas, while traditional adaptive thresholds require manual calibration.
     """
@@ -48,7 +50,8 @@ def adaptiveOtsu(gray,div_pixel,fraction):
     for y in range(hei):
         for x in range(wid):
             otsumat[y][x] = cv2.threshold(gray[y*div_pixel:y*div_pixel+div_pixel,x*div_pixel:x*div_pixel+div_pixel],0 ,255, cv2.THRESH_OTSU)[0]
-    otsumat = ndimage.gaussian_filter(otsumat, [3,3], mode='constant')
+    if blur:
+        otsumat = ndimage.gaussian_filter(otsumat, [3,3], mode='constant')
     for y in range(hei):
         for x in range(wid):
             thresholded[y*div_pixel:y*div_pixel+div_pixel,x*div_pixel:x*div_pixel+div_pixel]=cv2.threshold(gray[y*div_pixel:y*div_pixel+div_pixel,x*div_pixel:x*div_pixel+div_pixel],otsumat[y][x]*fraction,255,cv2.THRESH_BINARY)[1]
@@ -204,6 +207,17 @@ def DistanceBasedInside(whitecoord,maskmarkers,img,h,w,erode=3):
     """
     this function finds the sure foreground 'surefg' by performing a distance-transform 
     """
+    def is_max_pixel(image, x, y):
+        max_pixel_value = image[y][x]  # Assuming image is a 2D list representing the greyscale image
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                if image[y + j][x + i] > max_pixel_value:
+                    return 0
+        if max_pixel_value ==0:
+            return 0
+        else:
+            return max_pixel_value
+        
     temporary = np.zeros((h,w), dtype=np.uint8)
     temporary, _, rect = cv2.floodFill(temporary,maskmarkers,[whitecoord[1],whitecoord[0]],255,10,10)[1:]
     mask = temporary[rect[1]:rect[1]+rect[3],rect[0]:rect[0]+rect[2]]
@@ -211,6 +225,17 @@ def DistanceBasedInside(whitecoord,maskmarkers,img,h,w,erode=3):
     if erode != 0:
         mask = cv2.erode(mask,cv2.getStructuringElement(cv2.MORPH_CROSS, (erode,erode)), iterations = 1)
     distance = cv2.distanceTransform(mask,cv2.DIST_L2,5).astype(np.uint8)
+    # surefg = np.zeros([distance.shape[0],distance.shape[1]],dtype=np.uint8)
+    # if min(surefg.shape)<5:
+    #     return [surefg,rect]
+    # else:
+    #     structuring_edge = 5
+    #     for wi in range(1,distance.shape[1]-1):
+    #         for hi in range(1,distance.shape[0]-1):
+    #             surefg [hi][wi]=is_max_pixel(distance,wi,hi)
+    #     surefg =cv2.dilate(surefg,cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (structuring_edge,structuring_edge)),iterations = 1)
+    #     surefg = cv2.threshold(surefg,0 ,255, cv2.THRESH_OTSU)[1]
+
     surefg = cv2.threshold(distance,0 ,255, cv2.THRESH_OTSU)[1]
     return [surefg,rect]
 
@@ -224,7 +249,7 @@ def reunite_img(outputlist,h,w):
         for a in range(h2):
             for b in range(w2):
                     if i[0][a,b]!=0:
-                        toreunite[a+i[1][1],b+i[1][0]]=255
+                        toreunite[a+i[1][1],b+i[1][0]]=i[0][a,b]
     return toreunite
 
 def FragAnalFg(func,dividing,img,gray,h,w):
@@ -453,6 +478,7 @@ def exec(mode = 'automatic',roiselect = False, invert = False):
         cv2.destroyAllWindows() 
 
     gray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    
     h, w = gray.shape[:2]
 
     if invert:
@@ -489,16 +515,18 @@ def exec(mode = 'automatic',roiselect = False, invert = False):
     fordst = cv2.equalizeHist(cv2.GaussianBlur(gray, (5, 5), 0))
     print('finding edges...')
     dst = DoubleOtsu(fordst)
-    cv2.imwrite('bew.jpg',dst)
     #bottom_hat = bottom_hat(gray,dst)
-    #canny = confirmedThreshold(cv2.bitwise_not(cv2.Canny(gray,50,150)),cv2.threshold(dst,200,255,cv2.THRESH_BINARY)[1])
-    #canny = cv2.threshold(canny,200,255,cv2.THRESH_BINARY)[1]
-    #dst = cv2.addWeighted(dst, 0.5, canny, 0.5, 0)
+    # canny = confirmedThreshold(cv2.bitwise_not(cv2.Canny(gray,50,150)),cv2.threshold(dst,200,255,cv2.THRESH_BINARY)[1])
+    # canny = cv2.threshold(canny,200,255,cv2.THRESH_BINARY)[1]
+    # dst = cv2.addWeighted(dst, 0.5, canny, 0.5, 0)
     end = time.time()
     print('completed',end-start0,'seconds')
     print('finding foreground and background...')
     start0= time.time()
-    surefg = FragAnalFg(DistanceBasedInside,cv2.threshold(dst,200,255,cv2.THRESH_BINARY)[1],img,gray,h,w)[0]
+    surefg = FragAnalFg(DistanceBasedInside,cv2.threshold(dst,200,255,cv2.THRESH_BINARY)[1],img,fordst,h,w)[0]
+    cv2.imwrite(r'C:\Users\lovam\Documents\sklgp_lit\3d_drone\paper\foreground.png',surefg)#-------------------------------
+    # cv2.imshow('surefg',cv2.equalizeHist(surefg))
+    # cv2.waitKey(0)
     surebg =  cv2.threshold(dst,0,255,cv2.THRESH_BINARY)[1]
     unknown = cv2.subtract(surebg,surefg)
     end = time.time()
@@ -507,11 +535,7 @@ def exec(mode = 'automatic',roiselect = False, invert = False):
     markers = markers+1
     markers[unknown==255] = 0
     markers = cv2.watershed(img,markers)
-    # cv2.imshow('debordered', rerangemarkers(empty_borders(markers.copy()),h,w))
-    cv2.imshow('deborderbase', empty_borders(markers.copy()).astype(np.uint8))
-    cv2.imshow('reranged',rerangemarkers(markers.copy(),h,w))
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+
 
     print("entire process lasted", end-start)
     cv2.destroyAllWindows()
@@ -524,6 +548,7 @@ def exec(mode = 'automatic',roiselect = False, invert = False):
         export_to_csv(markers,'prova.csv')
     elif mode == 'manual correction':
         surefg,unknown,markers,colored = merge_split("manual correction",markers,surefg,surebg,img,loadpic)
+        cv2.imwrite(r'C:\Users\lovam\Documents\sklgp_lit\3d_drone\paper\colored.png',colored)#-------------------------------
         gsdata = exportGSD(markers,img, basename)
     return
 

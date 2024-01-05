@@ -14,7 +14,7 @@ def scalemax(img,maxallow):
     resized = cv2.resize(img, (int(round(w*scale)), int(round(h*scale))))
     return resized
 
-def selectcolors(img, maxlen = 1000):
+def selectcolors(img, maxlen = 1000, output = 'colors'):
     resized = scalemax(img,maxlen)
     landslide_points = []
     mask_points = []
@@ -57,13 +57,16 @@ def selectcolors(img, maxlen = 1000):
         if key in [27,13]:
             cv2.destroyAllWindows()
             break
-    landslide_colors = []
-    mask_colors = []
-    for i in landslide_points:
-        landslide_colors.append(list(resized[i[1],i[0]]))
-    for i in mask_points:
-        mask_colors.append(list(resized[i[1],i[0]]))
-    return landslide_colors, mask_colors
+    if output == 'points':
+        return landslide_points, mask_points
+    if output == 'colors':
+        landslide_colors = []
+        mask_colors = []
+        for i in landslide_points:
+            landslide_colors.append(list(resized[i[1],i[0]]))
+        for i in mask_points:
+            mask_colors.append(list(resized[i[1],i[0]]))
+        return landslide_colors, mask_colors
 
 def genmask(img,landslide_colors,mask_colors, maxlen = 500):
     def saturcolor(color):
