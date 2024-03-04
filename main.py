@@ -154,7 +154,7 @@ def button_click(button_text, maxdim = 1000):
                     del inimage[i]
                     del inimage_pixel[i]
         tree = KDTree(inimage_pixel)
-        limitsize = [600,300,150]
+        limitsize = [1000,300,150]
         h,w = cv2.imread(photoanal).shape[:2]
         detect_files_path = os.path.join(workspace,'multidetect_files',os.path.basename(photoanal)[:-3])
         if not os.path.exists(detect_files_path):

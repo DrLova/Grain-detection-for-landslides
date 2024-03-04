@@ -228,6 +228,7 @@ def dtectmod(nvmodel,photofolder,cropcoord,imageid):
         gsd = dtct.exportGSD(dtct.empty_borders(markers).copy(),snippet, 'not in use', centroidcolor = [197,97,255], min_area = 16,export=False) 
         return gsd
     try:
+        print("detecting",imageid)
         gsd = detect(nvmodel,photofolder, cropcoord, imageid)
     except:
         print('the snippet has wrong coordinates',cropcoord)
